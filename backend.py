@@ -5,6 +5,11 @@ from Map.obstacle import Obstacle
 from Settings.attributes import Direction
 from Simulator.simulator import AlgoSimulator
 
+import logging
+
+logger = logging.getLogger("uvicorn")
+
+
 app = FastAPI()
 
 
@@ -43,11 +48,18 @@ def parse_obstacles(raw: str):
 
     return obstacles
 
+@app.get("/")
+async def health_check():
+    return {"status": "ok", "message": "Simulator API running"}
 
 @app.post("/run")
 async def run_simulation(req: RunRequest):
 
+    logger.info(f"Raw request data: {req.data}")
+
     obstacles = parse_obstacles(req.data)
+
+    logger.info(f"Parsed obstacles: {obstacles}")
 
     sim = AlgoSimulator(obstacles)
     sim.init()

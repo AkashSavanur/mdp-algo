@@ -43,6 +43,9 @@ class AlgoSimulator(AlgoApp):
         self.size = self.width, self.height = WINDOW_SIZE
         self.screen = self.clock = None
         self.time_cal = False
+        self.timer_start = None
+        self.elapsed = 0
+
 
     def init(self):
         """
@@ -79,6 +82,9 @@ class AlgoSimulator(AlgoApp):
         """
         Render the screen.
         """
+        if self.timer_start is not None:
+            self.elapsed = time.time() - self.timer_start
+
         rect_outer= pygame.Rect(0, 0, 1300, 1200)
         self.screen.fill(DARK_BLACK, rect=rect_outer)
 
@@ -133,6 +139,7 @@ class AlgoSimulator(AlgoApp):
 
         # Draw start and exit buttons
         if self.start_button.draw():
+            self.timer_start = time.time()
             # Calculate the path.
             start = time.time()
             self.robot.brain.plan_path()
@@ -144,6 +151,28 @@ class AlgoSimulator(AlgoApp):
 
        # if self.reset_button.draw():
            # pass
+
+        # Timer display
+        # Timer display
+        timer_font = pygame.font.SysFont("Helvetica", 32)
+
+        mins = int(self.elapsed // 60)
+        secs = int(self.elapsed % 60)
+        millis = int((self.elapsed * 100) % 100)
+
+        timer_text = f"{mins:02}:{secs:02}.{millis:02}"
+        timer_surface = timer_font.render(timer_text, True, WHITE)
+
+        timer_rect = timer_surface.get_rect()
+
+        # Align vertically with buttons
+        timer_rect.centerx = 1400   # same column as buttons
+        timer_rect.y = 620          # slightly above start button
+
+        timer_bg = pygame.Rect(1320, 600, 200, 60)
+        self.screen.fill(DARK_BLACK, timer_bg)
+
+        self.screen.blit(timer_surface, timer_rect)
 
         # Really render now.
         pygame.display.flip()

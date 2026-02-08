@@ -1,4 +1,4 @@
-#!/Users/akashsavanur/Desktop/Algo/.venv/bin/python3
+#!/Users/akashsavanur/Desktop/Algo/.venv/bin/python
 # -*- coding: utf-8 -*-
 import sys
 from charset_normalizer.cli import cli_detect

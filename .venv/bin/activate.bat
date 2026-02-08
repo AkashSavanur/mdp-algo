@@ -26,7 +26,7 @@
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-@for %%i in ("/Users/akashsavanur/Desktop/Sem 2/MDP/SC2079_MDP_Grp19/Algo/.venv") do @set "VIRTUAL_ENV=%%~fi"
+@for %%i in ("/Users/akashsavanur/Desktop/Algo/.venv") do @set "VIRTUAL_ENV=%%~fi"
 
 @set "VIRTUAL_ENV_PROMPT=algo"
 @if NOT DEFINED VIRTUAL_ENV_PROMPT (

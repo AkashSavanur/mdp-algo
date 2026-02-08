@@ -79,7 +79,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV '/Users/akashsavanur/Desktop/Sem 2/MDP/SC2079_MDP_Grp19/Algo/.venv'
+set -gx VIRTUAL_ENV '/Users/akashsavanur/Desktop/Algo/.venv'
 
 # https://github.com/fish-shell/fish-shell/issues/436 altered PATH handling
 if test (string sub -s 1 -l 1 $FISH_VERSION) -lt 3

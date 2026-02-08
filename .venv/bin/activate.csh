@@ -31,7 +31,7 @@ alias deactivate 'test $?_OLD_VIRTUAL_PATH != 0 && setenv PATH "$_OLD_VIRTUAL_PA
 # Unset irrelevant variables.
 deactivate nondestructive
 
-setenv VIRTUAL_ENV '/Users/akashsavanur/Desktop/Sem 2/MDP/SC2079_MDP_Grp19/Algo/.venv'
+setenv VIRTUAL_ENV '/Users/akashsavanur/Desktop/Algo/.venv'
 
 set _OLD_VIRTUAL_PATH="$PATH:q"
 setenv PATH "$VIRTUAL_ENV:q/bin:$PATH:q"

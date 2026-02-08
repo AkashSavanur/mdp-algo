@@ -78,7 +78,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV='/Users/akashsavanur/Desktop/Sem 2/MDP/SC2079_MDP_Grp19/Algo/.venv'
+VIRTUAL_ENV='/Users/akashsavanur/Desktop/Algo/.venv'
 if ([ "$OSTYPE" = "cygwin" ] || [ "$OSTYPE" = "msys" ]) && $(command -v cygpath &> /dev/null) ; then
     VIRTUAL_ENV=$(cygpath -u "$VIRTUAL_ENV")
 fi

@@ -1,6 +1,4 @@
-#!/bin/sh
-'''exec' '/Users/akashsavanur/Desktop/Sem 2/MDP/SC2079_MDP_Grp19/Algo/.venv/bin/python' "$0" "$@"
-' '''
+#!/Users/akashsavanur/Desktop/Algo/.venv/bin/python
 # -*- coding: utf-8 -*-
 import sys
 from fastapi.cli import main
