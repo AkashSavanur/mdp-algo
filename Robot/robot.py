@@ -103,5 +103,4 @@ class Robot:
                 for command in self.brain.commands:
                     total_time += command.time
                     total_time = round(total_time)
-                print(f"All commands took {datetime.timedelta(seconds=total_time)}")
                 self.printed = True
