@@ -40,9 +40,14 @@ class Command(ABC):
 
 
 class ScanCommand(Command):
-    def __init__(self, time, obj_index):
+    def __init__(self, time, obj_index, obstacle=None, robot=None):
         super().__init__(time)
         self.obj_index = obj_index
+        self.obstacle = obstacle
+        self.robot = robot
+        self.bullseye_found = False  # Flag to track if bullseye was found during scan
+        self.scan_completed = False  # Flag to ensure we only process result once
+        self.image_result = None  # Stores the RPi image recognition result
 
     def __str__(self):
         return f"ScanCommand(time={self.time, self.obj_index})"
@@ -54,12 +59,143 @@ class ScanCommand(Command):
             return
 
         self.tick()
+        
+        # When scan completes, process the image recognition result
+        if self.ticks <= 0 and not self.scan_completed:
+            self.scan_completed = True
+            self._handle_scan_completion(robot)
+
+    def _handle_scan_completion(self, robot):
+        """
+        Called when the scan completes. Requests image recognition from RPi
+        and handles the result.
+        """
+        # Request image recognition from RPi
+        self.image_result = self._request_image_recognition_from_rpi()
+        
+        # Check if bullseye was detected
+        if self.image_result == "BULLSEYE":
+            self.bullseye_found = True
+            print(f"BULLSEYE DETECTED at obstacle {self.obj_index}!")
+            # Interrupt current path and start scanning the 4 sides
+            if self.robot and self.obstacle:
+                self.robot.interrupt_path_and_scan_obstacle(self.obstacle)
+        elif self.image_result:
+            print(f"Image recognized at obstacle {self.obj_index}: {self.image_result}")
+
+    def _request_image_recognition_from_rpi(self):
+        """
+        Sends a scan request to the RPi and gets the image recognition result.
+        Returns the detected image type (e.g., "BULLSEYE", "TARGET_1", etc.)
+        
+        TODO: Connect this to actual RPi communication module.
+        For now, this is a placeholder that should be implemented with your RPi interface.
+        """
+        # Placeholder - replace with actual RPi communication
+        # Example: return rpi_interface.get_image_recognition()
+        return None
 
     def apply_on_pos(self, curr_pos):
         pass
 
     def convert_to_message(self):
         return f"P___{self.obj_index}"
+
+
+class ObstacleScanCommand(Command):
+    """
+    Command to traverse the 4 sides of an obstacle for image recognition.
+    Goes around the obstacle in a square pattern (4 sides).
+    Distance is the distance from the obstacle center to travel on each side.
+    """
+    def __init__(self, side_distance, obstacle, robot=None):
+        """
+        side_distance: Distance to travel on each side of the obstacle
+        obstacle: The Obstacle object to scan around
+        robot: Reference to the robot for calling handle_scan_result
+        """
+        # Time to traverse all 4 sides: 4 sides * 2 straight commands + 4 turns
+        # Each side: straight + turn(90)
+        straight_time = 4 * abs(side_distance / ROBOT_SPEED_PER_SECOND)
+        turn_time = 4 * abs((math.radians(90) * ROBOT_LENGTH) / 
+                           (ROBOT_SPEED_PER_SECOND * ROBOT_S_FACTOR))
+        total_time = straight_time + turn_time
+        
+        super().__init__(total_time)
+        self.side_distance = side_distance
+        self.obstacle = obstacle
+        self.robot = robot
+        self.bullseye_found = False  # Flag to track if bullseye was found initially
+        self.target_found = False  # Flag to track if target image was found
+        self.scan_side = 0  # Which side we're currently scanning (0-3)
+        self.sub_command = None  # Current sub-command being executed
+        self.sub_commands = self._generate_scan_commands()
+        self.check_interval = 10  # Check for image every 10 ticks
+        self.ticks_since_last_check = 0
+
+    def _generate_scan_commands(self):
+        """Generate the sequence of commands to traverse all 4 sides."""
+        commands = []
+        # We'll generate straight + turn commands for each side
+        for _ in range(4):
+            commands.append(StraightCommand(self.side_distance))
+            commands.append(TurnCommand(90, False))  # Turn left 90 degrees
+        return commands
+
+    def __str__(self):
+        return f"ObstacleScanCommand(obstacle={self.obstacle.getIndex()}, side_dist={self.side_distance})"
+
+    __repr__ = __str__
+
+    def process_one_tick(self, robot):
+        if self.total_ticks == 0:
+            return
+
+        self.tick()
+        self.ticks_since_last_check += 1
+        
+        # Periodically check if target image was found during scanning
+        if self.ticks_since_last_check >= self.check_interval and not self.target_found:
+            self.ticks_since_last_check = 0
+            image_result = self._request_image_recognition_from_rpi()
+            
+            if image_result and image_result != "BULLSEYE":
+                self.target_found = True
+                print(f"Target image found during obstacle scan at obstacle {self.obstacle.getIndex()}!")
+                if self.robot:
+                    self.robot.handle_scan_result_during_obstacle_scan(image_result)
+                return
+        
+        # Execute sub-commands in sequence
+        if self.sub_command is None or self.sub_command.ticks <= 0:
+            if len(self.sub_commands) > 0:
+                self.sub_command = self.sub_commands.pop(0)
+            else:
+                # Scanning complete without finding target
+                print(f"Completed scanning all 4 sides of obstacle {self.obstacle.getIndex()}")
+                return
+        
+        if self.sub_command:
+            self.sub_command.process_one_tick(robot)
+
+    def _request_image_recognition_from_rpi(self):
+        """
+        Requests image recognition result from the RPi.
+        Returns the detected image type during obstacle scanning.
+        
+        TODO: Connect this to actual RPi communication module.
+        """
+        # Placeholder - replace with actual RPi communication
+        # Example: return rpi_interface.get_image_recognition()
+        return None
+
+    def apply_on_pos(self, curr_pos):
+        """Apply all the scanning movements to the position."""
+        for cmd in self._generate_scan_commands():
+            cmd.apply_on_pos(curr_pos)
+
+    def convert_to_message(self):
+        return f"SCAN_OBS_{self.obstacle.getIndex()}"
 
 class StraightCommand(Command):
     def __init__(self, dist):

@@ -99,7 +99,7 @@ class Brain:
                 else:
                     print("Path found.")
                     curr = res
-                    self.commands.append(ScanCommand(ROBOT_SCAN_TIME, obstacle.index))
+                    self.commands.append(ScanCommand(ROBOT_SCAN_TIME, obstacle.index, obstacle, self.robot))
             if not_found:
                 scan_count, command_length = self.count_scan_commands(self.commands)
                 if scan_count > max_obs_visited_count:
@@ -146,3 +146,68 @@ class Brain:
     
     def count_scan_commands(self, deque_instance):
         return sum(isinstance(item, ScanCommand) for item in deque_instance), len(deque_instance)
+
+    def interrupt_and_recalculate(self, bullseye_obstacle, current_position):
+        """
+        Called when a bullseye marker is found during scanning.
+        Interrupts the current path and recalculates for remaining obstacles.
+        
+        Args:
+            bullseye_obstacle: The Obstacle where the bullseye was found
+            current_position: The current RobotPosition
+        
+        Returns:
+            True if recalculation was successful, False otherwise
+        """
+        print("-" * 70)
+        print(f"BULLSEYE FOUND at obstacle {bullseye_obstacle.getIndex()}!")
+        print(f"Recalculating path for remaining obstacles...")
+        
+        # Create a new list of remaining obstacles (excluding the one with bullseye)
+        remaining_obstacles = [obs for obs in self.grid.obstacles 
+                              if obs.getIndex() != bullseye_obstacle.getIndex()]
+        
+        if not remaining_obstacles:
+            print("No remaining obstacles. Clearing commands.")
+            self.commands = deque()
+            return True
+        
+        # Calculate the best Hamiltonian path for remaining obstacles
+        perms = list(itertools.permutations(remaining_obstacles))
+        
+        def calc_distance(path):
+            targets = [current_position.xy_pygame()]
+            for obstacle in path:
+                targets.append(obstacle.pos.xy_pygame())
+            
+            dist = 0
+            for i in range(len(targets) - 1):
+                dist += math.sqrt(((targets[i][0] - targets[i + 1][0]) ** 2) +
+                                ((targets[i][1] - targets[i + 1][1]) ** 2))
+            return dist
+        
+        perms.sort(key=calc_distance)
+        best_path = perms[0]
+        
+        # Build new commands for the remaining path
+        new_commands = deque()
+        curr = current_position.copy()
+        
+        for obstacle in best_path:
+            target = obstacle.get_robot_target_pos()
+            print(f"Planning {curr} to {target}")
+            res = ModifiedAStar(self.grid, self, curr, target).start_astar()
+            if res is None:
+                print(f"No path found from {curr} to {obstacle}")
+                print("-" * 70)
+                return False
+            else:
+                print("Path found.")
+                curr = res
+                new_commands.append(ScanCommand(ROBOT_SCAN_TIME, obstacle.index, obstacle, self.robot))
+        
+        # Replace current commands with new recalculated commands
+        self.commands = new_commands
+        self.compress_paths()
+        print("-" * 70)
+        return True

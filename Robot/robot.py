@@ -17,6 +17,7 @@ class Robot:
         self._start_copy = self.pos.copy()
 
         self.brain = Brain(self, grid)
+        self.grid = grid
 
         self.__image = pygame.transform.scale(pygame.image.load("Assets/robot.png"),
                                               (100, 100))
@@ -25,6 +26,9 @@ class Robot:
 
         self.__current_command = 0  # Index of the current command being executed.
         self.printed = False  # Never printed total time before.
+        
+        self.scanning_obstacle = None  # The obstacle currently being scanned
+        self.image_result_during_scan = None  # Tracks image recognition results during scanning
 
     def get_current_pos(self):
         return self.pos
@@ -48,6 +52,48 @@ class Robot:
 
     def straight(self, dist):
         StraightCommand(dist).apply_on_pos(self.pos)
+
+    def interrupt_path_and_scan_obstacle(self, obstacle):
+        """
+        Called by ScanCommand when a bullseye is detected.
+        Interrupts the current Hamiltonian path and scans all 4 sides of an obstacle.
+        When the correct image is found, the path is recalculated for remaining obstacles.
+        """
+        print(f"Bullseye detected! Interrupting current path. Scanning obstacle {obstacle.getIndex()}...")
+        self.scanning_obstacle = obstacle
+        
+        # Insert obstacle scan command at the current position
+        scan_command = ObstacleScanCommand(OBSTACLE_SCAN_DISTANCE, obstacle, self)
+        
+        # Replace current command with scan command
+        self.brain.commands[self.__current_command] = scan_command
+        
+        # Reset the scan command's sub-commands so it starts fresh
+        if hasattr(scan_command, 'sub_commands'):
+            scan_command.sub_commands = scan_command._generate_scan_commands()
+
+    def handle_scan_result_during_obstacle_scan(self, image_result):
+        """
+        Called during obstacle scanning to check if the correct image was found.
+        If found, recalculates the path for remaining obstacles.
+        """
+        if not self.scanning_obstacle:
+            return
+            
+        if image_result and image_result != "BULLSEYE":
+            print(f"Target image found at obstacle {self.scanning_obstacle.getIndex()}!")
+            
+            # Recalculate path for remaining obstacles
+            success = self.brain.interrupt_and_recalculate(
+                self.scanning_obstacle,
+                self.pos.copy()
+            )
+            
+            if success:
+                self.__current_command = 0  # Reset to start new commands
+                self.scanning_obstacle = None
+            else:
+                print("Failed to recalculate path for remaining obstacles")
 
     def draw_simple_hamiltonian_path(self, screen):
         prev = self._start_copy.xy_pygame()
@@ -90,7 +136,6 @@ class Robot:
             self.__current_command += 1
             if self.__current_command >= len(self.brain.commands):
                 return
-
 
         command: Command = self.brain.commands[self.__current_command]
         command.process_one_tick(self)
